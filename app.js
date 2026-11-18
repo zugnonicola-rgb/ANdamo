@@ -2,21 +2,36 @@
   "use strict";
 
   const ANCONA = [43.6158, 13.5189];
-  const map = L.map("map", { zoomControl: false, attributionControl: false }).setView(ANCONA, 13);
+  const $ = (id) => document.getElementById(id);
 
-  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-    maxZoom: 19,
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+  const map = L.map("map", {
+    zoomControl: false,
+    attributionControl: false,
+    tap: true
+  }).setView(ANCONA, 13);
+
+  // CARTO Voyager: una base più ricca e curata, con dati OpenStreetMap.
+  L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
+    subdomains: "abcd",
+    maxZoom: 20,
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
   }).addTo(map);
 
+  // Controlli spostati sotto la barra di ricerca, senza sovrapporsi alle impostazioni.
   L.control.zoom({ position: "topright" }).addTo(map);
 
-  const $ = (id) => document.getElementById(id);
+  const mapCredit = document.querySelector(".map-credit");
+  if (mapCredit) {
+    mapCredit.innerHTML = '&copy; OpenStreetMap contributors &middot; &copy; CARTO';
+  }
+
   const sheet = $("bottomSheet");
   const sheetContent = $("sheetContent");
   const scrim = $("scrim");
   const nav = $("bottomNav");
+  const searchWrap = document.querySelector(".search-wrap");
   const toast = $("toast");
+
   let toastTimer;
   let moveTimer;
   let userMarker = null;
@@ -30,6 +45,18 @@
     toastTimer = setTimeout(() => toast.classList.remove("show"), 2400);
   }
 
+  function hideMapChrome() {
+    if (sheet.classList.contains("open")) return;
+    searchWrap.classList.add("hidden");
+    nav.classList.add("hidden");
+  }
+
+  function showMapChrome() {
+    if (sheet.classList.contains("open")) return;
+    searchWrap.classList.remove("hidden");
+    nav.classList.remove("hidden");
+  }
+
   function openSheet(panel, expanded = false) {
     selectedPanel = panel;
     sheetExpanded = expanded;
@@ -37,6 +64,7 @@
     sheet.classList.toggle("expanded", expanded);
     scrim.classList.add("visible");
     nav.classList.remove("hidden");
+    searchWrap.classList.remove("hidden");
     renderPanel(panel);
     document.querySelectorAll(".nav-item").forEach((item) => {
       item.classList.toggle("active", item.dataset.panel === panel);
@@ -50,6 +78,7 @@
     document.querySelectorAll(".nav-item").forEach((item) => {
       item.classList.toggle("active", item.dataset.panel === "map");
     });
+    showMapChrome();
   }
 
   function renderPanel(panel) {
@@ -68,7 +97,7 @@
       sheetContent.innerHTML = `
         <h2 class="panel-title">Impostazioni</h2>
         <div class="settings-row"><span>Tema</span><select id="themeSelect" aria-label="Tema"><option value="auto">Automatico</option><option value="light">Chiaro</option><option value="dark">Scuro</option></select></div>
-        <div class="settings-row"><span>Versione</span><strong>0.1 · Base iniziale</strong></div>
+        <div class="settings-row"><span>Versione</span><strong>0.2 · Mappa e interfaccia</strong></div>
         <div class="settings-row"><span>Orari</span><strong>Non ancora caricati</strong></div>
         <p class="panel-copy" style="margin-top:14px">ANdamo è in costruzione. I dati del servizio verranno collegati dopo la verifica delle fonti ufficiali.</p>`;
       const select = $("themeSelect");
@@ -93,6 +122,7 @@
 
   const savedTheme = localStorage.getItem("andamo-theme") || "auto";
   setTheme(savedTheme);
+
   window.matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", () => {
     if ((localStorage.getItem("andamo-theme") || "auto") === "auto") setTheme("auto");
   });
@@ -110,6 +140,7 @@
 
   $("settingsButton").addEventListener("click", () => openSheet("settings"));
   $("scrim").addEventListener("click", closeSheet);
+
   $("sheetHandle").addEventListener("click", () => {
     if (!sheet.classList.contains("open")) {
       openSheet(selectedPanel, false);
@@ -143,16 +174,19 @@
   const searchInput = $("searchInput");
   const clearSearch = $("clearSearch");
   const searchHint = $("searchHint");
+
   searchInput.addEventListener("input", () => {
     clearSearch.hidden = searchInput.value.length === 0;
     searchHint.classList.toggle("visible", searchInput.value.trim().length > 0);
   });
+
   clearSearch.addEventListener("click", () => {
     searchInput.value = "";
     clearSearch.hidden = true;
     searchHint.classList.remove("visible");
     searchInput.blur();
   });
+
   searchInput.addEventListener("keydown", (event) => {
     if (event.key === "Enter" && searchInput.value.trim()) {
       showToast("La ricerca sarà attivata con i dati ufficiali delle fermate");
@@ -160,17 +194,19 @@
     }
   });
 
-  map.on("movestart", () => {
-    if (!sheet.classList.contains("open")) nav.classList.add("hidden");
-  });
-  map.on("moveend", () => {
+  // Nasconde sia la ricerca sia il menu durante il movimento della mappa.
+  // Ricompaiono mezzo secondo dopo l'ultimo movimento/zoom.
+  map.on("movestart zoomstart", () => {
     clearTimeout(moveTimer);
-    moveTimer = setTimeout(() => {
-      if (!sheet.classList.contains("open")) nav.classList.remove("hidden");
-    }, 1500);
+    hideMapChrome();
   });
 
-  // Rende la mappa adattabile quando il pannello viene aperto o chiuso.
+  map.on("moveend zoomend", () => {
+    clearTimeout(moveTimer);
+    moveTimer = setTimeout(showMapChrome, 500);
+  });
+
+  // Ripristina le dimensioni corrette dopo l'apertura/chiusura dei pannelli.
   const observer = new ResizeObserver(() => map.invalidateSize());
   observer.observe(document.querySelector(".app-shell"));
   setTimeout(() => map.invalidateSize(), 250);
