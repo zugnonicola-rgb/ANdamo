@@ -1,13 +1,10 @@
 {
-  "name": "ANdamo — Ancona in movimento",
+  "name": "ANdamo",
   "short_name": "ANdamo",
-  "description": "Il trasporto pubblico di Ancona, a portata di mano.",
-  "lang": "it",
+  "description": "Muoversi ad Ancona in modo semplice.",
   "start_url": "./",
-  "scope": "./",
   "display": "standalone",
-  "orientation": "portrait",
-  "background_color": "#eaf7fa",
-  "theme_color": "#eaf7fa",
+  "background_color": "#edf7f8",
+  "theme_color": "#087f9d",
   "icons": []
 }

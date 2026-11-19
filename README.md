@@ -1,26 +1,27 @@
-# ANdamo
+# ANdamo — versione 0.3
 
-ANdamo è una web app in sviluppo per consultare il trasporto pubblico urbano di Ancona.
+Prima base PWA per esplorare la mappa di Ancona.
 
-## Versione 0.1
+## Pubblicazione su GitHub Pages
+Carica nella cartella principale del repository questi file:
+- `index.html`
+- `style.css`
+- `app.js`
+- `manifest.json`
+- `README.md`
 
-Questa prima base comprende:
-- mappa interattiva centrata su Ancona tramite Leaflet e OpenStreetMap;
-- interfaccia mobile;
-- ricerca predisposta;
-- pannelli Linee, Preferiti e Impostazioni;
-- geolocalizzazione su richiesta;
-- tema automatico, chiaro e scuro.
+Sovrascrivi i file con lo stesso nome e lascia invariati gli altri file del repository.
 
-**Attenzione:** in questa versione non sono ancora caricati fermate, linee, orari o dati LIVE. Verranno aggiunti solo dopo aver verificato e importato fonti ufficiali.
+## Novità della 0.3
+- Ripristinata la cartografia OpenStreetMap, senza API key.
+- Separato il fornitore cartografico (`MapProvider`) dalla logica dell'app.
+- Coordinate geografiche mantenute in WGS84 (latitudine/longitudine), indipendenti dal fornitore della mappa.
+- Conservate le correzioni per iOS: input di ricerca a 16 px, pannelli superiori/inferiori che si nascondono durante il movimento e ricompaiono dopo 500 ms.
+- Controlli zoom posizionati più in basso per non sovrapporsi al pulsante impostazioni.
+- Tema automatico/chiaro/scuro e geolocalizzazione.
 
-## Pubblicazione
+## Stato dei dati
+Questa versione è ancora una base dell'interfaccia: non contiene ancora l'elenco ufficiale delle fermate, le linee, gli orari o dati LIVE. Non mostra quindi bus o orari simulati.
 
-Il progetto è pensato per GitHub Pages. Le librerie Leaflet e i caratteri web vengono caricati da CDN e la mappa usa i tile standard di OpenStreetMap. L'uso dei tile è soggetto alla relativa policy.
-
-## Struttura
-
-- `index.html` — struttura dell'interfaccia
-- `style.css` — grafica e layout
-- `app.js` — interazioni e inizializzazione mappa
-- `manifest.json` — metadati PWA
+## Coordinate e cartografia
+Tutte le coordinate vengono gestite come WGS84, nel formato `[latitudine, longitudine]` per Leaflet. Cambiare il provider delle mappe non richiede di convertire le coordinate dei dati.
