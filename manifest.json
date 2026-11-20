@@ -1,10 +1,17 @@
 {
-  "name": "ANdamo",
+  "name": "ANdamo · Ancona",
   "short_name": "ANdamo",
-  "description": "Muoversi ad Ancona in modo semplice.",
   "start_url": "./",
   "display": "standalone",
-  "background_color": "#edf7f8",
-  "theme_color": "#087f9d",
-  "icons": []
+  "background_color": "#eaf5f8",
+  "theme_color": "#eef8fb",
+  "lang": "it",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
 }

@@ -3,62 +3,52 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#eaf7fa">
-  <meta name="description" content="ANdamo — muoversi ad Ancona in modo semplice.">
-  <title>ANdamo</title>
+  <meta name="theme-color" content="#eef8fb">
+  <meta name="description" content="ANdamo, la mappa del trasporto pubblico di Ancona.">
+  <title>ANdamo · Ancona</title>
   <link rel="manifest" href="manifest.json">
-  <link rel="preconnect" href="https://unpkg.com">
-  <link rel="preconnect" href="https://tile.openstreetmap.org">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <main class="app-shell">
     <header class="topbar" id="topbar">
-      <div class="brand">
-        <div class="brand-mark" aria-hidden="true">A</div>
-        <div><div class="brand-name">ANdamo</div><div class="brand-subtitle">Ancona, in movimento</div></div>
+      <div class="brand-row">
+        <div class="brand-mark">A</div>
+        <div class="brand-copy"><strong>ANdamo</strong><span>Ancona, in movimento</span></div>
+        <button class="icon-button" id="themeButton" aria-label="Cambia tema" title="Cambia tema">◐</button>
       </div>
-      <button class="icon-button settings-button" id="settingsButton" aria-label="Impostazioni" title="Impostazioni">⚙</button>
-    </header>
-
-    <section class="search-wrap" id="searchWrap">
-      <div class="search-box">
-        <span class="search-symbol" aria-hidden="true">⌕</span>
-        <input id="searchInput" type="search" placeholder="Fermata, linea o indirizzo" autocomplete="off" enterkeyhint="search">
+      <div class="search-wrap">
+        <span class="search-icon">⌕</span>
+        <input id="searchInput" type="search" autocomplete="off" placeholder="Cerca fermate o linee" aria-label="Cerca fermate o linee">
         <button id="clearSearch" class="clear-search" aria-label="Cancella ricerca" hidden>×</button>
       </div>
       <div id="searchResults" class="search-results" hidden></div>
-    </section>
+    </header>
 
-    <div id="map" role="application" aria-label="Mappa di Ancona"></div>
-    <div class="map-hint" id="mapHint">Esplora la mappa di Ancona</div>
+    <div id="map" aria-label="Mappa delle fermate del trasporto pubblico di Ancona"></div>
+
+    <div class="map-status" id="mapStatus"><span class="status-dot"></span><span id="statusText">Caricamento fermate…</span></div>
+    <button class="locate-button" id="locateButton" title="La mia posizione" aria-label="La mia posizione">◎</button>
+
+    <section class="bottom-sheet" id="bottomSheet" aria-live="polite">
+      <div class="sheet-handle"></div>
+      <div id="sheetContent" class="sheet-content">
+        <div class="sheet-intro">
+          <span class="eyebrow">BENVENUTO SU ANDAMO</span>
+          <h1>Muoviti ad Ancona.</h1>
+          <p>Seleziona una fermata sulla mappa oppure cerca una linea.</p>
+        </div>
+      </div>
+    </section>
 
     <nav class="bottom-nav" id="bottomNav" aria-label="Navigazione principale">
-      <button class="nav-item active" data-panel="mapPanel"><span>⌖</span><small>Mappa</small></button>
-      <button class="nav-item" data-panel="linesPanel"><span>⇄</span><small>Linee</small></button>
-      <button class="nav-item" data-panel="favoritesPanel"><span>☆</span><small>Preferiti</small></button>
+      <button class="nav-item active" data-tab="map"><span class="nav-symbol">⌖</span><span>Mappa</span></button>
+      <button class="nav-item" data-tab="lines"><span class="nav-symbol">≋</span><span>Linee</span></button>
+      <button class="nav-item" data-tab="favorites"><span class="nav-symbol">☆</span><span>Preferiti</span></button>
     </nav>
-
-    <section class="sheet" id="linesPanel" hidden>
-      <div class="sheet-handle"></div><div class="sheet-heading"><div><p class="eyebrow">TRASPORTO PUBBLICO</p><h2>Linee</h2></div><button class="close-sheet" aria-label="Chiudi">×</button></div>
-      <p class="empty-copy">Le linee e i relativi percorsi saranno disponibili quando importeremo i dati ufficiali del servizio.</p>
-    </section>
-    <section class="sheet" id="favoritesPanel" hidden>
-      <div class="sheet-handle"></div><div class="sheet-heading"><div><p class="eyebrow">I TUOI PREFERITI</p><h2>Salvati</h2></div><button class="close-sheet" aria-label="Chiudi">×</button></div>
-      <div class="favorite-section"><h3>Le mie fermate</h3><p class="empty-copy">Non hai ancora salvato fermate.</p></div>
-      <div class="favorite-section"><h3>Le mie linee</h3><p class="empty-copy">Non hai ancora salvato linee.</p></div>
-    </section>
-    <section class="sheet" id="settingsPanel" hidden>
-      <div class="sheet-handle"></div><div class="sheet-heading"><div><p class="eyebrow">PERSONALIZZA</p><h2>Impostazioni</h2></div><button class="close-sheet" aria-label="Chiudi">×</button></div>
-      <div class="setting-row"><div><strong>Aspetto</strong><small>Segui il tema del dispositivo</small></div><select id="themeSelect" aria-label="Tema"><option value="system">Automatico</option><option value="light">Chiaro</option><option value="dark">Scuro</option></select></div>
-      <div class="setting-row"><div><strong>Posizione</strong><small>Centra la mappa su di te</small></div><button class="text-button" id="locateButton">Usa posizione</button></div>
-      <p class="version-note">ANdamo · versione 0.3<br>Orari e dati LIVE non ancora collegati.</p>
-    </section>
-    <section class="sheet stop-sheet" id="stopPanel" hidden>
-      <div class="sheet-handle"></div><div class="sheet-heading"><div><p class="eyebrow">FERMATA</p><h2 id="stopTitle">Fermata selezionata</h2></div><button class="close-sheet" aria-label="Chiudi">×</button></div>
-      <p class="empty-copy">I dettagli della fermata saranno mostrati qui quando saranno importati i dati ufficiali.</p>
-    </section>
+    <div id="toast" class="toast" role="status"></div>
   </main>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="app.js"></script>
