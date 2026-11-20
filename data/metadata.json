@@ -1,0 +1,33 @@
+{
+  "appVersion": "0.4.0",
+  "dataset": "IT-ITI3-ATMA_L1",
+  "format": "NeTEx Level 1 XML gzip",
+  "publisher": "Regione Marche / RAP Marche",
+  "operator": "ATMA",
+  "publicationTimestamp": "2026-07-09T11:59:41",
+  "datasetValidFrom": "2026-07-01",
+  "datasetValidTo": "2026-12-31",
+  "selection": {
+    "type": "geographic bounding box, not official municipal boundary",
+    "west": 13.43,
+    "east": 13.65,
+    "south": 43.53,
+    "north": 43.69,
+    "stops": 891,
+    "lines": 65
+  },
+  "counts": {
+    "allDatasetStops": 3919,
+    "allDatasetLines": 130,
+    "allDatasetJourneyPatterns": 14157,
+    "allDatasetStopReferences": 333081,
+    "selectedStops": 891,
+    "selectedLines": 65
+  },
+  "limitations": [
+    "This package contains static planned transport data, not real-time vehicle positions.",
+    "The selected area is a geographic bounding box and is not the official boundary of the Municipality of Ancona.",
+    "Line associations are derived from NeTEx ServiceJourneyPattern stop sequences.",
+    "The source XML does not contain an explicit licence statement. Public redistribution/republication must wait until reuse terms are confirmed."
+  ]
+}
