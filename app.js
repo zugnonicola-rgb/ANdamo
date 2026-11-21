@@ -34,6 +34,7 @@
       }).addTo(this.map);
       this.layer = L.layerGroup().addTo(this.map);
       this.markers = new Map();
+      this.map.on('zoomend', () => this.refreshStopVisibility());
       this.map.on('movestart zoomstart', () => {
         topbar.classList.add('hidden-ui'); bottomNav.classList.add('hidden-ui');
         clearTimeout(state.mapMovingTimer);
@@ -48,26 +49,60 @@
     addStops(stops) {
       stops.forEach(stop => {
         const marker = L.circleMarker([stop.lat, stop.lon], {
-          radius: 5, color: '#ffffff', weight: 1.5, fillColor: '#1688b5', fillOpacity: .95
+          radius: 3, color: '#ffffff', weight: 1.1, fillColor: '#1688b5', fillOpacity: .92,
+          opacity: .92, interactive: true
         }).addTo(this.layer);
         marker.on('click', () => showStop(stop.id));
         this.markers.set(stop.id, marker);
+      });
+      this.refreshStopVisibility();
+    }
+    isMainStop(stop) {
+      if (stop.isMajor === true || stop.importance === 'major') return true;
+      const name = String(stop.name || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
+      const landmark = /STAZIONE|PIAZZA IV NOVEMBRE|PIAZZA UGO BASSI|PIAZZA CAVOUR|PIAZZA ROMA|PIAZZA KENNEDY|PIAZZA DIAZ|UNIVERSIT|OSPEDALE|TORRETTE|P\.?ZZALE? LIBERTA/.test(name);
+      return landmark || (Array.isArray(stop.lines) && stop.lines.length >= 4);
+    }
+    refreshStopVisibility() {
+      if (!this.markers.size) return;
+      const zoom = this.map.getZoom();
+      const mainStops = state.stops.filter(s => this.isMainStop(s));
+      const fallback = new Set(mainStops.length ? mainStops.map(s => s.id) : state.stops
+        .slice().sort((a,b) => (b.lines?.length || 0) - (a.lines?.length || 0)).slice(0,12).map(s => s.id));
+      state.stops.forEach(stop => {
+        const marker = this.markers.get(stop.id);
+        if (!marker) return;
+        const isSelected = state.selectedStop === stop.id;
+        const isLineStop = state.selectedLine && state.lineByCode.get(state.selectedLine)?.stopIds?.includes(stop.id);
+        const visible = isSelected || isLineStop || (zoom >= 16) ||
+          (zoom >= 14 && (fallback.has(stop.id) || (stop.lines?.length || 0) >= 2)) ||
+          (zoom < 14 && fallback.has(stop.id));
+        marker.options.interactive = Boolean(visible);
+        const radius = isSelected ? 5.8 : (zoom >= 16 ? 3.6 : zoom >= 14 ? 3.2 : 2.8);
+        const dimmed = state.selectedLine && !isLineStop;
+        marker.setStyle({
+          radius,
+          opacity: visible ? (dimmed ? .18 : 1) : 0,
+          fillOpacity: visible ? (dimmed ? .12 : .9) : 0,
+          color: isSelected ? '#ffffff' : '#ffffff',
+          weight: isSelected ? 2 : 1,
+          fillColor: isSelected ? '#f4bd43' : '#1688b5'
+        });
       });
     }
     focusStop(stop, zoom = 16) {
       this.map.setView([stop.lat, stop.lon], Math.max(this.map.getZoom(), zoom), { animate: true });
       const marker = this.markers.get(stop.id);
-      if (marker) { marker.setStyle({ radius: 8, fillColor: '#ffd56b', color: '#fff', weight: 3 }); }
+      if (marker) this.refreshStopVisibility();
     }
     setLineStops(ids) {
-      const active = new Set(ids);
-      this.markers.forEach((marker, id) => {
-        const on = active.has(id);
-        marker.setStyle({ opacity: on ? 1 : .14, fillOpacity: on ? .95 : .12, radius: on ? 6 : 4 });
-      });
+      state.selectedLine = state.selectedLine || null;
+      this.refreshStopVisibility();
     }
     resetStyles() {
-      this.markers.forEach(marker => marker.setStyle({ opacity: 1, fillOpacity: .95, radius: 5, fillColor: '#1688b5', color: '#fff', weight: 1.5 }));
+      state.selectedLine = null;
+      state.selectedStop = null;
+      this.refreshStopVisibility();
     }
     fitStops(ids) {
       const coords = ids.map(id => state.stopById.get(id)).filter(Boolean).map(s => [s.lat,s.lon]);
@@ -87,7 +122,7 @@
   function showStop(id) {
     const stop = state.stopById.get(id); if (!stop) return;
     state.selectedStop = id; state.selectedLine = null; state.activeTab = 'map';
-    mapAdapter.resetStyles(); mapAdapter.focusStop(stop);
+    mapAdapter.resetStyles(); state.selectedStop = id; mapAdapter.focusStop(stop);
     const saved = state.favorites.stops.includes(id);
     sheet.classList.remove('hidden');
     sheetContent.innerHTML = `
@@ -186,8 +221,12 @@
       state.stops.forEach(s=>state.stopById.set(s.id,s));
       state.lines.forEach(l=>state.lineByCode.set(l.code,l));
       mapAdapter=MapProvider.create('map'); mapAdapter.addStops(state.stops);
-      statusText.textContent=`${state.stops.length} fermate`;
-      if(metadata) $('statusText').title=`Dati statici ATMA · validità ${metadata.datasetValidFrom} – ${metadata.datasetValidTo}`;
+      statusText.textContent = state.stops.length ? `${state.stops.length} fermate` : 'Mappa pronta';
+      if (!state.stops.length) {
+        sheet.classList.remove('hidden');
+        sheetContent.innerHTML = '<div class="sheet-intro"><span class="eyebrow">ANdamo · IN SVILUPPO</span><h1>La mappa è pronta.</h1><p>Stiamo preparando l’inserimento delle fermate e delle linee. Quando i dati saranno integrati, compariranno in modo progressivo in base allo zoom.</p></div>';
+      }
+      if(metadata && metadata.datasetValidFrom) $('statusText').title=`Dati aggiornati · validità ${metadata.datasetValidFrom} – ${metadata.datasetValidTo || ''}`;
       $('searchInput').addEventListener('input',e=>renderSearch(e.target.value));
       $('clearSearch').addEventListener('click',()=>{$('searchInput').value='';renderSearch('');$('searchInput').focus()});
       $('themeButton').addEventListener('click',toggleTheme);
