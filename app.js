@@ -1,7 +1,7 @@
 (() => {
   'use strict';
   const MAP_PROVIDER = 'leaflet';
-  const ANCONA_VIEW = { lat: 43.6068, lon: 13.5187, zoom: 13 };
+  const ANCONA_VIEW = { lat: 43.6068, lon: 13.5187, zoom: 14 };
   const state = {
     stops: [], lines: [], stopById: new Map(), lineByCode: new Map(),
     selectedStop: null, selectedLine: null, activeTab: 'map',
@@ -28,13 +28,22 @@
 
   class LeafletMapProvider {
     constructor(container) {
-      this.map = L.map(container, { zoomControl: true, preferCanvas: true }).setView([ANCONA_VIEW.lat, ANCONA_VIEW.lon], ANCONA_VIEW.zoom);
+      const savedView = this.readSavedView();
+      const initialView = savedView || ANCONA_VIEW;
+      this.map = L.map(container, { zoomControl: true, preferCanvas: true }).setView([initialView.lat, initialView.lon], initialView.zoom);
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
       }).addTo(this.map);
       this.layer = L.layerGroup().addTo(this.map);
       this.markers = new Map();
       this.map.on('zoomend', () => this.refreshStopVisibility());
+      this.map.on('moveend', () => this.saveView());
+      this.map.on('locationfound', e => {
+        const zoom = Math.max(this.map.getZoom(), 15);
+        this.map.setView(e.latlng, zoom, { animate: true });
+        this.saveView();
+      });
+      this.map.on('locationerror', () => toast('Posizione non disponibile'));
       this.map.on('movestart zoomstart', () => {
         topbar.classList.add('hidden-ui'); bottomNav.classList.add('hidden-ui');
         clearTimeout(state.mapMovingTimer);
@@ -45,6 +54,29 @@
           if (state.activeTab === 'map') { topbar.classList.remove('hidden-ui'); bottomNav.classList.remove('hidden-ui'); }
         }, 500);
       });
+    }
+    readSavedView() {
+      try {
+        const value = JSON.parse(localStorage.getItem('andamo-map-view') || 'null');
+        if (value && Number.isFinite(value.lat) && Number.isFinite(value.lon) &&
+            Number.isFinite(value.zoom) && value.lat >= -90 && value.lat <= 90 &&
+            value.lon >= -180 && value.lon <= 180) return value;
+      } catch (_) {}
+      return null;
+    }
+    saveView() {
+      const c = this.map.getCenter();
+      try { localStorage.setItem('andamo-map-view', JSON.stringify({lat:c.lat, lon:c.lng, zoom:this.map.getZoom()})); } catch (_) {}
+    }
+    useGrantedLocation() {
+      if (!navigator.geolocation || !navigator.permissions?.query) return;
+      navigator.permissions.query({name:'geolocation'}).then(permission => {
+        if (permission.state !== 'granted') return;
+        navigator.geolocation.getCurrentPosition(pos => {
+          this.map.setView([pos.coords.latitude, pos.coords.longitude], 15, {animate:true});
+          this.saveView();
+        }, () => {}, {enableHighAccuracy:true, timeout:10000, maximumAge:60000});
+      }).catch(() => {});
     }
     addStops(stops) {
       stops.forEach(stop => {
@@ -221,14 +253,21 @@
       state.stops.forEach(s=>state.stopById.set(s.id,s));
       state.lines.forEach(l=>state.lineByCode.set(l.code,l));
       mapAdapter=MapProvider.create('map'); mapAdapter.addStops(state.stops);
+      sheet.classList.add('hidden');
+      mapAdapter.useGrantedLocation();
       statusText.textContent = state.stops.length ? `${state.stops.length} fermate` : 'Mappa pronta';
-      if (!state.stops.length) {
-        sheet.classList.remove('hidden');
-        sheetContent.innerHTML = '<div class="sheet-intro"><span class="eyebrow">ANdamo · IN SVILUPPO</span><h1>La mappa è pronta.</h1><p>Stiamo preparando l’inserimento delle fermate e delle linee. Quando i dati saranno integrati, compariranno in modo progressivo in base allo zoom.</p></div>';
-      }
       if(metadata && metadata.datasetValidFrom) $('statusText').title=`Dati aggiornati · validità ${metadata.datasetValidFrom} – ${metadata.datasetValidTo || ''}`;
       $('searchInput').addEventListener('input',e=>renderSearch(e.target.value));
       $('clearSearch').addEventListener('click',()=>{$('searchInput').value='';renderSearch('');$('searchInput').focus()});
+      $('closeSheet').addEventListener('click', closeSheet);
+      const handle = document.querySelector('.sheet-handle');
+      let swipeStartY = null;
+      handle.addEventListener('pointerdown', e => { swipeStartY = e.clientY; handle.setPointerCapture(e.pointerId); });
+      handle.addEventListener('pointerup', e => {
+        if (swipeStartY !== null && e.clientY - swipeStartY > 45) closeSheet();
+        swipeStartY = null;
+      });
+      handle.addEventListener('pointercancel', () => { swipeStartY = null; });
       $('themeButton').addEventListener('click',toggleTheme);
       $('locateButton').addEventListener('click',()=>mapAdapter.locate());
       document.querySelectorAll('.nav-item').forEach(b=>b.addEventListener('click',()=>{
@@ -240,9 +279,16 @@
       applyTheme();
     } catch(err) {
       statusText.textContent='Errore nel caricamento dei dati';
+      sheet.classList.remove('hidden');
       sheetContent.innerHTML='<div class="sheet-intro"><h1>Non riesco a caricare le fermate.</h1><p>Controlla la connessione e ricarica la pagina.</p></div>';
       console.error(err);
     }
+  }
+  function closeSheet() {
+    sheet.classList.add('hidden');
+    $('searchResults').hidden = true;
+    topbar.classList.remove('hidden-ui');
+    bottomNav.classList.remove('hidden-ui');
   }
   function applyTheme() {
     const saved=localStorage.getItem('andamo-theme')||'system';
